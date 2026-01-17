@@ -1,20 +1,21 @@
 {
   "name": "testbyte",
   "version": "1.0.0",
-  "description": "",
+  "description": "MERN Interview Application with Video Calling",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "build" : "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
-    "start": "npm run start --prefix backend"
+    "build": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend",
+    "start": "npm run start --prefix backend",
+    "dev": "npm run dev --prefix backend"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ronny12git/testbyte.git"
   },
-  "keywords": [],
+  "keywords": ["mern", "interview", "video-calling", "webrtc"],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/ronny12git/testbyte/issues"
   },

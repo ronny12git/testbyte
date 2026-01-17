@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: testbyte-app
+    env: node
+    buildCommand: npm run install-all && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DB_URL
+        sync: false  # Will add manually in dashboard
