@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema(
         type:String,
         default:"",
     },
-    cleakID:{
+    clerkID:{
         type:String,
     }
     },
