@@ -3,13 +3,22 @@ import {ENV} from "./libs/env.js";
 import path from "path";
 import { fileURLToPath } from 'url';
 import { connectDB } from "./libs/db.js";
-
+import cors from "cors";
+import {serve} from "inngest/express";
+import {inngest, functions} from "./libs/inngest.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+
+const app = express();
+
+app.use(express.json())
+// credential request meaning that cookies are sent along with requests
+app.use(cors({origin:ENV.CLIENT_URL,credentials:true}))
+app.use("/api/inngest",serve({client:inngest,functions}))
 console.log(ENV.PORT)
 console.log(ENV.DB_URL)
-const app = express();
+
 
 app.get("/health", (req,res) => {
     res.status(200).json({msg:"success at health endpoint"});
