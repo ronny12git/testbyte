@@ -2,24 +2,27 @@ import express from "express";
 import {ENV} from "./libs/env.js";
 import path from "path";
 import { fileURLToPath } from 'url';
-import { connectDB } from "./libs/db.js";
-import cors from "cors";
-import {serve} from "inngest/express";
-import {inngest, functions} from "./libs/inngest.js";
+import { handleClerkWebhook } from "./controllers/clerkWebhook.controller.js";
+import { connectDB } from "./libs/db-connection.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-
-const app = express();
-
-app.use(express.json())
-// credential request meaning that cookies are sent along with requests
-app.use(cors({origin:ENV.CLIENT_URL,credentials:true}))
-app.use("/api/inngest",serve({client:inngest,functions}))
 console.log(ENV.PORT)
 console.log(ENV.DB_URL)
 
+// Connect to MongoDB
+connectDB();
 
+const app = express();
+
+// Clerk webhook needs raw body
+app.post("/api/webhooks/clerk", express.raw({ type: 'application/json' }), handleClerkWebhook);
+
+// Regular JSON parsing for other routes
+app.use(express.json());
+
+// API routes
 app.get("/health", (req,res) => {
     res.status(200).json({msg:"success at health endpoint"});
 })
@@ -42,16 +45,8 @@ if(ENV.NODE_ENV === "production"){
     })
 }
 
-const startServer = async () => {
-    try {
-        await connectDB();
-        app.listen(ENV.PORT,() =>{
-        console.log("server is running on port " + ENV.PORT);
-    });
-        
-    } catch (error) {
-        console.error("error starting the server",error);
-    }
-}
+const PORT = ENV.PORT || 5000;
 
-startServer();
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
