@@ -1,4 +1,4 @@
-import {Inngest} from "inngest";
+import {Inngest, serve} from "inngest";
 import { connectDB } from "./db.js";
 import User from "../models/User.js";
 
@@ -44,4 +44,5 @@ const deleteUserFromDB = inngest.createFunction(
 // todo something else
 
 export const functions = [syncUser,deleteUserFromDB]
+
     
