@@ -3,7 +3,7 @@ import {ENV} from "./libs/env.js";
 import path from "path";
 import { fileURLToPath } from 'url';
 import { handleClerkWebhook } from "./controllers/clerkWebhook.controller.js";
-import { connectDB } from "./libs/db-connection.js";
+import { connectDB } from "./libs/db.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
