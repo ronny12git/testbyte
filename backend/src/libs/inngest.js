@@ -20,31 +20,42 @@ const syncUser = inngest.createFunction(
       console.log("Connected to MongoDB");
     });
 
-    // Step 2: Create user in MongoDB
-    const newUser = await step.run("create-user-in-db", async () => {
+    // Step 2: Create or update user in MongoDB
+    const newUser = await step.run("create-or-update-user", async () => {
       const { id, email_addresses, first_name, last_name, image_url } = event.data;
-
-      const email = (email_addresses && Array.isArray(email_addresses) && email_addresses.length > 0 && email_addresses[0].email_address) ? email_addresses[0].email_address : '';
-
-      if (!email) {
-        console.warn("No email address found for user:", id);
-      }
 
       const userData = {
         clerkId: id,
-        email: email,
+        email: email_addresses[0].email_address,
         firstName: first_name || "",
         lastName: last_name || "",
         profileImage: image_url || ""
       };
 
-      const user = await User.create(userData);
-      console.log("User created in MongoDB:", id, "with email:", email || "none");
-      return user;
+      try {
+        // Try to create the user
+        const user = await User.create(userData);
+        console.log("✅ User created in MongoDB:", id);
+        return user;
+      } catch (error) {
+        // If duplicate error, update the existing user instead
+        if (error.code === 11000) {
+          console.log("⚠️ User already exists, updating instead:", id);
+          const user = await User.findOneAndUpdate(
+            { clerkId: id },
+            userData,
+            { new: true, upsert: true }
+          );
+          console.log("✅ User updated in MongoDB:", id);
+          return user;
+        }
+        // If it's a different error, throw it
+        throw error;
+      }
     });
 
     // Step 3: Sync user to Stream
-    const streamResult = await step.run("sync-user-to-stream", async () => {
+    await step.run("sync-user-to-stream", async () => {
       try {
         const streamUserData = {
           id: newUser.clerkId.toString(),
@@ -56,22 +67,16 @@ const syncUser = inngest.createFunction(
         
         await upsertStreamUser(streamUserData);
         
-        console.log("User synced to Stream successfully:", newUser.clerkId);
-        return { success: true };
+        console.log("✅ User synced to Stream successfully:", newUser.clerkId);
       } catch (error) {
-        console.error("Failed to sync user to Stream:", error);
+        console.error("❌ Failed to sync user to Stream:", error);
         console.error("Error message:", error.message);
-        console.error("User data:", newUser);
         // Don't throw - allow the function to complete even if Stream fails
         return { error: error.message, userId: newUser.clerkId };
       }
     });
 
-    if (streamResult && streamResult.error) {
-      return { success: false, error: streamResult.error, userId: newUser.clerkId };
-    } else {
-      return { success: true, userId: newUser.clerkId };
-    }
+    return { success: true, userId: newUser.clerkId };
   }
 );
 
@@ -88,8 +93,13 @@ const deleteUserFromDB = inngest.createFunction(
     // Step 2: Delete from MongoDB
     await step.run("delete-from-mongodb", async () => {
       const { id } = event.data;
-      await User.deleteOne({ clerkId: id });
-      console.log("User deleted from MongoDB:", id);
+      const result = await User.deleteOne({ clerkId: id });
+      
+      if (result.deletedCount > 0) {
+        console.log("✅ User deleted from MongoDB:", id);
+      } else {
+        console.log("⚠️ User not found in MongoDB:", id);
+      }
     });
 
     // Step 3: Delete from Stream
@@ -97,9 +107,9 @@ const deleteUserFromDB = inngest.createFunction(
       try {
         const { id } = event.data;
         await deleteStreamUser(id.toString());
-        console.log("User deleted from Stream:", id);
+        console.log("✅ User deleted from Stream:", id);
       } catch (error) {
-        console.error("Failed to delete user from Stream:", error);
+        console.error("❌ Failed to delete user from Stream:", error);
         // Don't throw - allow the function to complete
         return { error: error.message };
       }
