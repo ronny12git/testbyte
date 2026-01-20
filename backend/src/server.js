@@ -13,45 +13,76 @@ console.log(ENV.DB_URL)
 
 const app = express();
 
+// Clerk webhook handler - MUST come before express.json()
+app.post("/api/webhooks/clerk", express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+        console.log("📨 Clerk webhook received");
+        
+        const payload = JSON.parse(req.body.toString());
+        const eventType = payload.type;
+        
+        console.log("Event type:", eventType);
+        
+        // Send to Inngest
+        if (eventType === "user.created") {
+            console.log("👤 Sending user.created to Inngest...");
+            await inngest.send({
+                name: "clerk/user.created",
+                data: payload.data
+            });
+            console.log("✅ Event sent to Inngest!");
+        }
+        
+        if (eventType === "user.deleted") {
+            console.log("🗑️  Sending user.deleted to Inngest...");
+            await inngest.send({
+                name: "clerk/user.deleted",
+                data: payload.data
+            });
+            console.log("✅ Event sent to Inngest!");
+        }
+        
+        res.json({ received: true });
+    } catch (error) {
+        console.error("❌ Webhook error:", error);
+        res.status(400).json({ error: error.message });
+    }
+});
+
 // Regular JSON parsing
 app.use(express.json());
 
-// ===== API ROUTES - THESE MUST COME BEFORE STATIC FILES =====
-app.get("/health", (req,res) => {
-    res.status(200).json({msg:"success at health endpoint"});
-})
+// API routes
+app.get("/health", (req, res) => {
+    res.json({msg: "health ok"});
+});
 
-app.get("/books", (req,res) => {
-    res.status(200).json({msg:"success at books endpoint"});
-})
+app.get("/books", (req, res) => {
+    res.json({msg: "books ok"});
+});
 
-app.get("/store", (req,res) => {
-    res.status(200).json({msg:"success at store endpoint"});
-})
+app.get("/store", (req, res) => {
+    res.json({msg: "store ok"});
+});
 
-// Inngest endpoint - MUST come before static files
+// Inngest endpoint
 app.use("/api/inngest", serve({
-  client: inngest,
-  functions: functions,
+    client: inngest,
+    functions: functions,
 }));
 
-// ===== STATIC FILES & CATCH-ALL (MUST BE LAST) =====
-if(ENV.NODE_ENV === "production"){
-    // Serve static files from the React app
-    app.use(express.static(path.join(__dirname,"../../frontend/dist")));
-
-    // Catch-all route using middleware instead of app.get("*")
-    // This works with Express v5
+// Static files
+if (ENV.NODE_ENV === "production") {
+    app.use(express.static(path.join(__dirname, "../../frontend/dist")));
     app.use((req, res) => {
-        res.sendFile(path.join(__dirname,"../../frontend","dist","index.html"));
-    })
+        res.sendFile(path.join(__dirname, "../../frontend", "dist", "index.html"));
+    });
 } else {
-    // In development, show a simple message at root
-    app.get("/", (req,res) => {
-        res.status(200).json({msg:"success at endpoint - development mode"});
-    })
+    app.get("/", (req, res) => {
+        res.json({msg: "development mode"});
+    });
 }
 
-app.listen(ENV.PORT,() =>{
-    console.log("server is running on port " + ENV.PORT);
-})
+app.listen(ENV.PORT, () => {
+    console.log(`🚀 Server running on port ${ENV.PORT}`);
+});
