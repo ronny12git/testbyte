@@ -2,9 +2,8 @@ import express from "express";
 import {ENV} from "./libs/env.js";
 import path from "path";
 import { fileURLToPath } from 'url';
-import { handleClerkWebhook } from "./controllers/clerkWebhook.controller.js";
-import { connectDB } from "./libs/db.js";
-import { inngestServe } from "./libs/inngest.js";
+import { serve } from "inngest/express";
+import { inngest, functions } from "./libs/inngest.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,15 +11,9 @@ const __dirname = path.dirname(__filename);
 console.log(ENV.PORT)
 console.log(ENV.DB_URL)
 
-// Connect to MongoDB
-connectDB();
-
 const app = express();
 
-// IMPORTANT: Clerk webhook needs raw body BEFORE express.json()
-app.post("/api/webhooks/clerk", express.raw({ type: 'application/json' }), handleClerkWebhook);
-
-// Regular JSON parsing for other routes
+// Regular JSON parsing
 app.use(express.json());
 
 // ===== API ROUTES - THESE MUST COME BEFORE STATIC FILES =====
@@ -37,15 +30,19 @@ app.get("/store", (req,res) => {
 })
 
 // Inngest endpoint - MUST come before static files
-app.use("/api/inngest", inngestServe);
+app.use("/api/inngest", serve({
+  client: inngest,
+  functions: functions,
+}));
 
 // ===== STATIC FILES & CATCH-ALL (MUST BE LAST) =====
 if(ENV.NODE_ENV === "production"){
     // Serve static files from the React app
     app.use(express.static(path.join(__dirname,"../../frontend/dist")));
 
-    // Catch-all route for React Router - MUST BE LAST
-    app.get("*", (req, res) => {
+    // Catch-all route using middleware instead of app.get("*")
+    // This works with Express v5
+    app.use((req, res) => {
         res.sendFile(path.join(__dirname,"../../frontend","dist","index.html"));
     })
 } else {
@@ -55,3 +52,6 @@ if(ENV.NODE_ENV === "production"){
     })
 }
 
+app.listen(ENV.PORT,() =>{
+    console.log("server is running on port " + ENV.PORT);
+})
